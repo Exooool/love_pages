@@ -8,8 +8,8 @@ export default defineConfig({
   plugins: [vue()],
   build: {
     outDir: "docs",
-    base: "/love_pages",
   },
+  base: "/love_pages/",
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
