@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [vue()],
   build: {
     outDir: "docs",
+    base: "/love_pages",
   },
   resolve: {
     alias: {
