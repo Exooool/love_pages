@@ -1,6 +1,6 @@
 <template>
   <div class="timer-container">
-    <div class="total-days"></div>
+    <div class="total-days">{{ timeOBJ.days }}天</div>
     <div class="day-block">
       <div class="time-block hours">
         <span class="time-title">时</span>
@@ -185,13 +185,21 @@ export default defineComponent({
       clearInterval(timeOBJ.timeInterval);
     });
 
-    return {};
+    return {
+      timeOBJ,
+    };
   },
 });
 </script>
 
 <style lang="scss" scoped>
 .timer-container {
+  .total-days {
+    font-size: 45px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
   .time-block {
     float: left;
     margin: 0px 15px;
