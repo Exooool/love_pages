@@ -60,29 +60,52 @@
 </template>
 
 <script>
-import { defineComponent, onMounted, onBeforeUnmount } from "vue";
+import { defineComponent, onMounted, onBeforeUnmount, reactive } from "vue";
+
+const modes = ["seq", "dec"];
 
 export default defineComponent({
-  setup() {
-    const totalTime = 5400000;
-    const timeOBJ = {
-      timeSeconds: 0,
+  props: {
+    // 模式选择 正计时 倒计时
+    mode: {
+      validator(value) {
+        return modes.includes(value);
+      },
+      default: "dec",
+    },
+    // 从某个时间开始到现在的时长开始计时 正计时时生效
+    startTime: String,
+    // 时长对象 xxD(天)xxH(小时)xxM(分钟)xxS(秒) 倒计时时生效
+    time: String,
+  },
+  setup(props) {
+    const timeOBJ = reactive({
       days: 0,
       hours: 0,
       minutes: 0,
       seconds: 0,
+      timeSeconds: 0,
       timeInterval: null,
-    };
+    });
 
     // 解析时间为 天 时 分 秒
     const resolveTime = (time) => {
-      const days = Math.floor(time / 86400000);
-      const hours = Math.floor((time % 86400000) / 3600000);
-      const minutes = Math.floor(((time % 86400000) % 3600000) / 60000);
+      var timeTmpe = time;
+      if (isNaN(timeTmpe) && props.mode === "dec") {
+        // const days = time.indexOf("D") ? "" : 0;
+      }
+
+      if (isNaN(timeTmpe) && props.mode === "seq") {
+        timeTmpe = new Date() - new Date(timeTmpe);
+      }
+      // 毫秒转为时间
+      const days = Math.floor(timeTmpe / 86400000);
+      const hours = Math.floor((timeTmpe % 86400000) / 3600000);
+      const minutes = Math.floor(((timeTmpe % 86400000) % 3600000) / 60000);
       const seconds = Math.floor(
-        (((time % 86400000) % 3600000) % 60000) / 1000
+        (((timeTmpe % 86400000) % 3600000) % 60000) / 1000
       );
-      const totalSeconds = time / 1000;
+      const totalSeconds = timeTmpe / 1000;
       return {
         days,
         hours,
@@ -90,9 +113,12 @@ export default defineComponent({
         seconds,
         totalSeconds,
       };
+      // 解析字符串对象为number类型的毫秒
     };
 
     const timeInit = () => {
+      if (!(props.startTime || props.time)) return;
+
       const hour1 = document.getElementById("hour-1");
       const hour2 = document.getElementById("hour-2");
       const min1 = document.getElementById("minute-1");
@@ -100,24 +126,63 @@ export default defineComponent({
       const sec1 = document.getElementById("second-1");
       const sec2 = document.getElementById("second-2");
 
-      const { days, hours, minutes, seconds, totalSeconds } =
-        resolveTime(totalTime);
+      const { days, hours, minutes, seconds, totalSeconds } = resolveTime(
+        props.mode === "seq" ? props.startTime : props.time
+      );
       timeOBJ.timeSeconds = totalSeconds;
       timeOBJ.days = days;
       timeOBJ.hours = hours;
       timeOBJ.minutes = minutes;
       timeOBJ.seconds = seconds;
-      timeOBJ.timeInterval = setInterval(() => {
-        if (timeOBJ.timeSeconds > 0) {
-          --timeOBJ.seconds;
-          if (timeOBJ.minutes >= 0 && timeOBJ.seconds < 0) {
-            timeOBJ.seconds = 59;
-            --timeOBJ.minutes;
+      if (props.mode === "dec") {
+        timeOBJ.timeInterval = setInterval(() => {
+          if (timeOBJ.timeSeconds > 0) {
+            --timeOBJ.seconds;
+            if (timeOBJ.minutes >= 0 && timeOBJ.seconds < 0) {
+              timeOBJ.seconds = 59;
+              --timeOBJ.minutes;
+            }
+
+            if (timeOBJ.hours >= 0 && timeOBJ.minutes < 0) {
+              timeOBJ.minutes = 59;
+              --timeOBJ.hours;
+            }
+
+            if (timeOBJ.days >= 0 && timeOBJ.hours < 0) {
+              timeOBJ.hours = 23;
+              --timeOBJ.days;
+            }
+
+            // 改变页面的值 并赋予动画
+            setTime(timeOBJ.hours, hour1, hour2);
+
+            setTime(timeOBJ.minutes, min1, min2);
+
+            setTime(timeOBJ.seconds, sec1, sec2);
+
+            --timeOBJ.timeSeconds;
+            // console.log(timeOBJ.timeSeconds);
+          } else {
+            clearInterval(timeOBJ.timeInterval);
+          }
+        }, 1000);
+      } else if (props.mode === "seq") {
+        timeOBJ.timeInterval = setInterval(() => {
+          ++timeOBJ.seconds;
+
+          if (timeOBJ.seconds === 60) {
+            timeOBJ.seconds = 0;
+            ++timeOBJ.minutes;
           }
 
-          if (timeOBJ.hours >= 0 && timeOBJ.minutes < 0) {
-            timeOBJ.minutes = 59;
-            --timeOBJ.hours;
+          if (timeOBJ.minutes === 60) {
+            timeOBJ.minutes = 0;
+            ++timeOBJ.hours;
+          }
+
+          if (timeOBJ.hours === 24) {
+            timeOBJ.hours = 0;
+            ++timeOBJ.days;
           }
 
           // 改变页面的值 并赋予动画
@@ -127,12 +192,10 @@ export default defineComponent({
 
           setTime(timeOBJ.seconds, sec1, sec2);
 
-          --timeOBJ.timeSeconds;
-          console.log(timeOBJ.timeSeconds);
-        } else {
-          clearInterval(timeOBJ.timeInterval);
-        }
-      }, 1000);
+          ++timeOBJ.timeSeconds;
+          // console.log(timeOBJ.timeSeconds);
+        }, 1000);
+      }
     };
 
     const setTime = (value, dom1, dom2) => {
@@ -178,7 +241,11 @@ export default defineComponent({
     };
 
     onMounted(() => {
-      timeInit();
+      if (modes.includes(props.mode)) {
+        timeInit();
+      } else {
+        console.warn("组件mode参数携带错误");
+      }
     });
 
     onBeforeUnmount(() => {
@@ -195,7 +262,7 @@ export default defineComponent({
 <style lang="scss" scoped>
 .timer-container {
   .total-days {
-    font-size: 45px;
+    font-size: 65px;
     text-align: center;
     margin-bottom: 20px;
   }
@@ -250,6 +317,8 @@ export default defineComponent({
         bottom: 0;
         width: 100%;
         height: 100%;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
         border-bottom: 1px solid rgba(0, 0, 0, 0.1);
       }
     }
@@ -258,8 +327,6 @@ export default defineComponent({
     .top-back {
       background-color: #fff;
       height: 50%;
-      border-top-left-radius: 8px;
-      border-top-right-radius: 8px;
       overflow: hidden;
       backface-visibility: hidden;
     }
@@ -291,6 +358,7 @@ export default defineComponent({
     .top-back {
       z-index: 4;
       background-color: #fff;
+      border-radius: 8px;
       position: absolute;
       top: 50%;
       left: 0;
